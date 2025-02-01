@@ -27,19 +27,19 @@
     <title abbrev="VRRP BFD">
 Fast failure detection in VRRP with Point to Point BFD
 </title>
-    <seriesInfo name="Internet-Draft" value="draft-ietf-rtgwg-vrrp-bfd-p2p-01"/>
+    <seriesInfo name="Internet-Draft" value="draft-ietf-rtgwg-vrrp-bfd-p2p-02"/>
     <author initials="N" surname="Gupta" fullname="Nitish Gupta">
-      <organization>Cisco Systems, Inc.</organization>
+      <organization>Palo Alto Networks, Inc.</organization>
       <address>
         <postal>
-          <street>3265 CISCO Way</street>
-          <city>San Jose</city>
-          <code>95134</code>
+          <street>3000 Tannery Way</street>
+          <city>Santa Clara</city>
+          <code>95054</code>
           <country>United States</country>
         </postal>
-        <phone>+91 80 4429 2530</phone>
-        <email>nitisgup@cisco.com</email>
-        <uri>http://www.cisco.com/</uri>
+        <phone>+1 408 753 4000</phone>
+        <email>nitgupta@paloaltonetworks.com</email>
+        <uri>paloaltonetworks.com/</uri>
       </address>
     </author>
     <author initials="A" surname="Dogra" fullname="Aditya Dogra">
@@ -61,14 +61,8 @@ Fast failure detection in VRRP with Point to Point BFD
         <email>colin@doch.org.uk</email>
       </address>
     </author>
-    <author initials="G." surname="Mirsky" fullname="Greg Mirsky">
-      <organization>Individual</organization>
-      <address>
-        <email>gregimirsky@gmail.com</email>
-      </address>
-    </author>
     <author initials="J." surname="Tantsura" fullname="Jeff Tantsura">
-      <organization>Individual</organization>
+      <organization>Nvidia</organization>
       <address>
         <email>jefftant.ietf@gmail.com</email>
       </address>
@@ -90,7 +84,7 @@ This document describes how Point to Point Bidirectional Forwarding Detection (B
       <t>
 The Virtual Router Redundancy Protocol (VRRP) provides redundant Virtual gateways in the Local Area Network (LAN), which is typically the first point of failure for end-hosts sending traffic out of the LAN. Fast failure detection of VRRP Active is critical in supporting high availability of services and improved Quality of Experience to users. 
 
-In VRRP <xref target="RFC5798"/> specification, Backup routers depend on VRRP packets generated at a regular interval by the Active router, to detect the health of the VRRP Active. Faster failure detection can be achieved within VRRP protocol by reducing the Advertisement and Active Down Interval. However, sub second Advert timers, can put extra load on CPU and the network bandwidth which may not be desirable. 
+In VRRP <xref target="RFC9568"/> specification, Backup routers depend on VRRP packets generated at a regular interval by the Active router, to detect the health of the VRRP Active. Faster failure detection can be achieved within VRRP protocol by reducing the Advertisement and Active Down Interval. However, sub second Advert timers, can put extra load on CPU and the network bandwidth which may not be desirable. 
 </t>
       <t>Since the VRRP protocol depends on the availability of Layer 3 IPv4 or IPv6 connectivity between redundant peers, the VRRP protocol can interact with the Layer 3 variant of BFD as described in <xref target="RFC5881"/> to achieve a much faster failure detection of the VRRP Active on the LAN. BFD, as specified by the <xref target="RFC5880"/> can provide a much faster failure detection in the range of 150ms, if implemented in the part of a Network device which scales better than VRRP when sub second Advert timers are used. 
 </t>
