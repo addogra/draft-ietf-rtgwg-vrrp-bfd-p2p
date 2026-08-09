@@ -1,0 +1,1069 @@
+<?xml version='1.0' encoding='utf-8'?>
+<!-- This template is for creating an Internet Draft using xml2rfc,
+which is available here: http://xml.resource.org. -->
+<!DOCTYPE rfc>
+<!-- used by XSLT processors -->
+<!-- For a complete list and description of processing instructions (PIs),
+please see http://xml.resource.org/authoring/README.html. -->
+<rfc
+    xmlns:xi="http://www.w3.org/2001/XInclude"
+    category="std"
+    docName="draft-ietf-rtgwg-vrrp-bfd-p2p-04"
+    ipr="trust200902"
+    updates="9568"
+    obsoletes=""
+    submissionType="IETF"
+    xml:lang="en"
+    tocInclude="true"
+    tocDepth="4"
+    symRefs="true"
+    sortRefs="true"
+    consensus="true"
+    version="3">
+
+  <!-- xml2rfc v2v3 conversion 3.15.3 -->
+  <front>
+    <title abbrev="VRRP BFD">
+Fast failure detection in VRRP with Point-to-Point BFD
+</title>
+    <seriesInfo name="Internet-Draft" value="draft-ietf-rtgwg-vrrp-bfd-p2p-04"/>
+    <author initials="N" surname="Gupta" fullname="Nitish Gupta">
+      <organization>Palo Alto Networks, Inc.</organization>
+      <address>
+        <postal>
+          <street>3000 Tannery Way</street>
+          <city>Santa Clara</city>
+          <code>95054</code>
+          <country>United States</country>
+        </postal>
+        <phone>+1 408 753 4000</phone>
+        <email>nitgupta@paloaltonetworks.com</email>
+        <uri>https://www.paloaltonetworks.com/</uri>
+      </address>
+    </author>
+    <author initials="A" surname="Dogra" fullname="Aditya Dogra">
+      <organization>Cisco Systems, Inc.</organization>
+      <address>
+        <postal>
+          <street>Sarjapur Outer Ring Road</street>
+          <city>Bangalore</city>
+          <code>560103</code>
+          <country>India</country>
+        </postal>
+        <email>addogra@cisco.com</email>
+        <uri>http://www.cisco.com/</uri>
+      </address>
+    </author>
+    <author initials="C" surname="Docherty" fullname="Colin Docherty">
+      <organization>Ciena</organization>
+      <address>
+        <email>colin@doch.org.uk</email>
+      </address>
+    </author>
+    <author initials="J." surname="Tantsura" fullname="Jeff Tantsura">
+      <organization>Nvidia</organization>
+      <address>
+        <email>jefftant.ietf@gmail.com</email>
+      </address>
+    </author>
+    <area>General</area>
+    <keyword>RFC</keyword>
+    <keyword>VRRP</keyword>
+    <keyword>BFD</keyword>
+    <keyword>Peer learning</keyword>
+    <abstract>
+      <t>
+This document describes how Point-to-Point Bidirectional Forwarding Detection (BFD) can be used to support sub-second detection of an Active Router failure in the Virtual Router Redundancy Protocol (VRRP). This document updates RFC 9568.
+</t>
+    </abstract>
+  </front>
+  <middle>
+    <section>
+      <name>Introduction</name>
+      <t>
+The Virtual Router Redundancy Protocol (VRRP) provides redundant Virtual gateways in the Local Area Network (LAN), which is typically the first point of failure for end-hosts sending traffic out of the LAN. Fast failure detection of VRRP Active is critical in supporting high availability of services and improved Quality of Experience to users. 
+
+In VRRP <xref target="RFC9568"/> specification, Backup Routers depend on VRRP packets generated at a regular interval by the Active Router, to detect the health of the VRRP Active. Faster failure detection can be achieved within VRRP protocol by reducing the Advertisement and Active Down Interval. However, sub-second Advert timers, can put extra load on CPU and the network bandwidth which may not be desirable. 
+</t>
+      <t>Since the VRRP protocol depends on the availability of Layer 3 IPv4 or IPv6 connectivity between redundant peers, the VRRP protocol can interact with the Layer 3 variant of BFD as described in <xref target="RFC5881"/> to achieve a much faster failure detection of the VRRP Active on the LAN. BFD, as specified by the <xref target="RFC5880"/> can provide a much faster failure detection in the range of 150ms, if implemented in the part of a Network device which scales better than VRRP when sub-second Advert timers are used. 
+</t>
+      <t>Terminology of this draft has been updated conform to inclusive language guidelines for VRRP Inclusive Terminologies <xref target="RFC9568"/>. The IETF has designated National Institute of Standards and Technology (NIST) "Guidance for NIST Staff on Using Inclusive Language in Documentary Standards" <xref target="NISTIR8366"/> for its inclusive language guidelines.
+</t>
+    </section>
+    <section>
+      <name>Terminology</name>
+      <t>This document uses the terminology defined in Section 1.7 of
+      <xref target="RFC9568"/>.  The following terms are used by this
+      specification:</t>
+      <dl>
+        <dt>Active Router</dt>
+        <dd>The VRRP Router currently responsible for forwarding packets sent
+        to the IPvX addresses associated with the Virtual Router.</dd>
+        <dt>Backup Router</dt>
+        <dd>A VRRP Router available to assume forwarding responsibility if the
+        current Active Router fails.</dd>
+        <dt>Backup Advertisement</dt>
+        <dd>A VRRP packet with Type 2, sent by a Backup Router to advertise its
+        presence and priority.</dd>
+        <dt>Peer Table</dt>
+        <dd>Per-Virtual-Router state learned from the source addresses of
+        Advertisements and Backup Advertisements and used to identify VRRP
+        peers.</dd>
+        <dt>Critical Backup</dt>
+        <dd>The highest-priority Backup Router, with ties resolved using the
+        primary IPvX address as specified in this document.</dd>
+        <dt>Critical Path BFD Session</dt>
+        <dd>The point-to-point BFD session between the current Active Router
+        and the Critical Backup.</dd>
+        <dt>Critical BFD Binding</dt>
+        <dd>The association of a Virtual Router instance with its current
+        Critical Path BFD Session.</dd>
+        <dt>Eligible BFD Failure</dt>
+        <dd>An Up-to-Down transition of the Critical Path BFD Session
+        referenced by the current Critical BFD Binding.  At a Backup Router,
+        such a transition is eligible only while the local router is the
+        currently selected Critical Backup for that Virtual Router.</dd>
+      </dl>
+    </section>
+    <section anchor="reqlang">
+      <name>Requirements Language</name>
+      <t>
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in BCP 14 <xref target="RFC2119"/> <xref target="RFC8174"/> when, and only when, they appear in all capitals, as shown here.
+      </t>
+    </section>
+    <section>
+      <name>Applicability of Point-to-Point BFD</name>
+      <t>BFD for IPv4 or IPv6 (Single Hop) <xref target="RFC5881"/> requires that in order for a BFD session to be formed both peers participating in a BFD session need to know its peer IPv4 or IPv6 address. This poses a unique problem with the definition of the VRRP protocol, that makes the use of BFD for IPv4 or IPv6 <xref target="RFC5881"/> more challenging. In VRRP it is only the Active Router that sends Advert packets. This means that an Active Router is not aware of any Backup Routers, and Backup Routers are only aware of the Active Router. This also means that a Backup Router is not aware of any other Backup Routers in the Network.
+</t>
+      <t>Since BFD for IPv4 or IPv6 <xref target="RFC5881"/> requires that a session be formed by both peers using a full destination and source address, there needs to be some external means to provide this information to BFD on behalf of VRRP. Once the peer information is available, the current Active Router and the selected Critical Backup form the Critical Path BFD Session for the Virtual Router. This mechanism does not require a full mesh of BFD sessions among the VRRP Routers. An Eligible BFD Failure is interpreted as an Active Down event only by the currently selected Critical Backup. Other Backup Routers remain in the Backup state and continue to use the Active_Down_Timer, including the Skew_Time procedures specified by <xref target="RFC9568"/>.</t>
+      <t>NOTE: At all times, the normal fail-over mechanism defined in the VRRP  <xref target="RFC9568"/> will be unaffected, and the BFD fail-over mechanism will always resort to normal VRRP fail-over.
+</t>
+      <t>This document defines the mechanism used by VRRP to build a Peer Table, select the Critical Backup, and form the Critical Path BFD Session. An Eligible BFD Failure signals an Active Down event only at the current Critical Backup. This requires an extension to the VRRP protocol.
+</t>
+      <t>
+This can be achieved by defining a new type in the VRRP Advert packet, and allowing VRRP peers to build a peer table in any of the operational state, Active or Backup.
+</t>
+      <section>
+        <name>Extension to VRRP protocol</name>
+        <t>
+In this mode of operation, VRRP Routers learn adjacent VRRP Routers. All Backup Routers periodically send BACKUP ADVERTISEMENT packets so that the participating routers can build the Peer Table and select the Critical Backup. The Active Router continues to send ADVERTISEMENT packets as defined by <xref target="RFC9568"/>. Only the current Active Router and the selected Critical Backup form the Critical Path BFD Session.</t>
+        <t>
+Additionally, Advert packets sent from Backup Peers must not use the Virtual router MAC address as the source address. Instead it must use the Interface MAC address as the source address from which the packet is sent from. This is because the source MAC override feature is used by the Active to send Advert packets from the Virtual Router MAC address, which is used to keep the bridging cache on LAN switches and bridging devices refreshed with the destination port for the Virtual Router MAC.</t>
+      </section>
+      <section>
+        <name>VRRP Peer Table</name>
+        <t>
+VRRP peers form the Peer Table by learning the source address of the enclosing IPv4 or IPv6 packet carrying an ADVERTISEMENT or BACKUP ADVERTISEMENT. For IPv4, this is the sender's primary IPv4 address; for IPv6, this is the sender's interface link-local address, as specified by <xref target="RFC9568"/>. This learned source address, and not an address in the protected IPvX address list, identifies the peer and the endpoint of the Critical Path BFD Session.
+</t>
+        <t>
+A peer entry should be removed from the peer table if Advert is not
+received from a peer for a period of (3 * the Advert interval).
+</t>
+      </section>
+      <section anchor="format">
+        <name>VRRP BACKUP ADVERTISEMENT Packet Type</name>
+        <t keepWithNext="true">The following figure shows the VRRP packet as defined in VRRP <xref target="RFC9568"/> RFC.</t>
+        <artwork><![CDATA[
+
+  0                   1                   2                   3
+  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+ +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ |             IPv4 Fields or IPv6 Fields                        |
+...                                                             ...
+ |                                                               |
+ +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ |Version| Type  | Virtual Rtr ID|    Priority   |Count IPvX Addr| 
+ +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ |(rsvd) |    Max Advert Int     |        Checksum               |
+ +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ |                                                               |
+ +                                                               +
+ |                   IPvX Address(es)                            |
+ +                                                               +
+ +                                                               +
+ +                                                               +
+ +                                                               +
+ |                                                               |
+ +                                                               +
+ |                                                               |
+ +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+]]></artwork>
+        <t keepWithNext="true">The type field specifies the type of this VRRP packet. The type field can have two values. Type 1 (ADVERTISEMENT) is used by the VRRP Active Router. Type 2 (BACKUP ADVERTISEMENT) is used by the VRRP Backup Router. This is to distinguish the packets sent by the VRRP Backup Router. VRRP Backup fills Backup_Advertisement_Interval in the Max Advert Int of BACKUP ADVERTISEMENT packet. The remaining fields are encoded as specified for an ADVERTISEMENT by <xref target="RFC9568"/>.</t>
+        <artwork><![CDATA[
+   1 ADVERTISEMENT
+   2 BACKUP ADVERTISEMENT
+]]></artwork>
+        <t keepWithPrevious="true">A packet with unknown type MUST be discarded.</t>
+        <t>A BACKUP ADVERTISEMENT MUST carry the Count IPvX Addr and IPvX
+        Address(es) fields for the same Virtual Router in the same manner as
+        an ADVERTISEMENT.  The minimum Count IPvX Addr is one; a packet with a
+        count of zero MUST be ignored.  Receivers MUST apply the applicable
+        address-list validation from Section 7.1 of <xref target="RFC9568"/>.
+        The listed addresses identify the IPvX addresses protected by the
+        Virtual Router; they are not BFD endpoints.  The BFD endpoint is
+        learned from the source address of the enclosing IPv4 or IPv6
+        packet.</t>
+      </section>
+      <section anchor="Sample_configuration">
+        <name>Sample configuration</name>
+        <t keepWithNext="true">The following figure shows a simple network with three VRRP routers implementing one virtual router.</t>
+        <artwork><![CDATA[
+    +-----------+     +-----------+      +-----------+ 
+    |   Rtr1    |     |   Rtr2    |      |   Rtr3    |
+    |(AR VRID=1)|     |(BR VRID=1)|      |(BR VRID=1)|
+    | (PR=200)  |     | (PR=150)  |      | (PR=100)  |
+    | VRIPVX= A |     | VRIPVX= A |      | VRIPVX= A |
+    +-----------+     +-----------+      +-----------+
+         B                 C                  D
+         |                 |                  |
+         |                 |                  |
+         |                 |                  |
+---------+--------+--------+---------+--------+---------
+Legend:
+        ---+---+---+--    =  Ethernet, Token Ring, or FDDI
+                    AR    =  Active Router
+                    BR    =  Backup Router
+                    PR    =  VRRP Router priority
+                    VRID  =  Virtual Router Identifier
+                    VRIPVX=  IPv4 or IPv6 address protected by 
+                             the VRRP Router
+                    B,C,D =  Interface IPv4 or IPv6 address of 
+                             the Virtual Router
+
+]]></artwork>
+        <t>In the above configuration there are three routers on the LAN protecting an IPv4 or IPv6 address associated to a Virtual Router Identifier 1. Rtr1 is the Active Router since it has the highest priority compared to Rtr2 and Rtr3. Now if peer learning extension is enabled on all the peers. Rtr1 will send the Advert packet with type field set to 1. While Rtr2 and Rtr3 will send the Advert packet with type field set to 2. In the above configuration the peer table built at each router is shown below:</t>
+        <t keepWithNext="true">Rtr1 Peer table</t>
+        <artwork><![CDATA[
++------------------------------------+
+|  Peer Address  |     Priority      |
++------------------------------------+
+|     C          |       150         |
++------------------------------------+
+|     D          |       100         |
++------------------------------------+
+]]></artwork>
+        <t keepWithNext="true">Rtr2 Peer table</t>
+        <artwork><![CDATA[
++------------------------------------+
+|  Peer Address  |     Priority      |
++------------------------------------+
+|     B          |       200         |
++------------------------------------+
+|     D          |       100         |
++------------------------------------+
+]]></artwork>
+        <t keepWithNext="true">Rtr3 Peer table</t>
+        <artwork><![CDATA[
++------------------------------------+
+|  Peer Address  |     Priority      |
++------------------------------------+
+|     B          |       200         |
++------------------------------------+
+|     C          |       150         |
++------------------------------------+
+]]></artwork>
+        <t>Once the Peer Tables are formed, each router independently selects
+        Rtr2 as the Critical Backup.  Rtr1 and Rtr2 form the Critical Path BFD
+        Session.  Rtr3 does not act on that session and continues to use the
+        normal VRRP Active_Down_Timer.</t>
+      </section>
+      <section>
+        <name>Critical BFD session</name>
+        <t>Each router selects the Critical Backup from the Backup Routers for
+        the Virtual Router, including the local router when it is in the
+        Backup state.  The Backup Router with the highest VRRP Priority is
+        selected.  If two or more Backup Routers have equal Priority, the one
+        with the highest primary IPvX source address is selected using the
+        address ordering specified by <xref target="RFC9568"/>.  The Critical
+        BFD Session is formed only between the current Active Router and this
+        selected Critical Backup.
+</t>
+        <t>In the above example, the Critical BFD Session is formed between
+        Rtr1 and Rtr2.  If that session transitions from Up to Down while Rtr2
+        remains the selected Critical Backup, Rtr2 treats the transition as an
+        Active Down event, immediately assumes the Active role for VRID 1, and
+        sends a Type 1 ADVERTISEMENT.  Rtr3 does not change state in response
+        to that BFD transition.  It remains in Backup state and continues to
+        use the Active_Down_Timer and Skew_Time procedures in
+        <xref target="RFC9568"/>.
+</t>
+        <t>A Backup Router MUST map an Up-to-Down transition of the Critical
+        BFD Session to an Active Down event only when the local router is the
+        currently selected Critical Backup for that Virtual Router.  A Backup
+        Router that is not the Critical Backup MUST NOT change its VRRP state
+        as a result of that BFD session-state transition.</t>
+      </section>
+      <section>
+        <name>Protocol State Machine</name>
+        <section>
+          <name>Parameters Per Virtual Router</name>
+          <t>
+Following parameters are added to the VRRP protocol to support this mode of operation.
+
+</t>
+          <artwork><![CDATA[
+
+Backup_Advertisement_Interval  Time interval between
+                               BACKUP ADVERTISEMENTS
+                               (centiseconds). Default is 100
+                               centiseconds (1 second).
+
+Backup_Adver_Interval          Advertisement interval contained in
+                               BACKUP ADVERTISEMENTS received from
+                               the Backup (centiseconds). This
+                               value is saved by virtual routers
+                               used, to compute Backup_Down_Interval.
+
+Backup_Down_Interval           Time interval for VRRP instance
+                               to declare Backup down
+                               (centiseconds). Calculated as
+                               (3 * Backup_Adver_Interval) for
+                               each VRRP Backup.
+                        
+Critical_Backup                The highest-ranked Backup selected using
+                               the procedure described in the Critical
+                               BFD session section of this document.
+                        
+Critical_BFD_Session           The Critical BFD Session is 
+                               the session between
+                               the VRRP Active and Critical_Backup.
+
+Critical_BFD_Binding           Associates this Virtual Router instance
+                               with its current Critical_BFD_Session.
+
+]]></artwork>
+        </section>
+        <section>
+          <name>Timers</name>
+          <t>
+Following timers are added to the VRRP protocol to support this mode of operation.
+</t>
+          <artwork><![CDATA[
+Backup_Down_Timer          Timer that fires when BACKUP ADVERTISEMENT
+                           has not been heard from a backup peer for
+                           Backup_Down_Interval.
+
+Backup_Adver_Timer         Timer that fires to trigger sending of
+                           BACKUP ADVERTISEMENT based on
+                           Backup_Advertisement_Interval.
+]]></artwork>
+        </section>
+        <section>
+          <name>VRRP State Machine with Point-to-Point BFD</name>
+          <t>
+Following State Machine replaces the state Machine outlined in section 6.4 of the VRRP protocol <xref target="RFC9568"/> to support this mode of operation.
+Please refer to the section 6.4 of <xref target="RFC9568"/> for State description.
+</t>
+          <section>
+            <name>Initialize</name>
+            <t>Following state machine replaces the state machine outlined in section 6.4.1 of <xref target="RFC9568"/>
+            </t>
+            <artwork><![CDATA[
+(100) If a Startup event is received, then:
+
+   (105) - If the Priority = 255 (i.e., the router owns the IPvX
+   address associated with the virtual router), then:
+
+      (110) + Send an ADVERTISEMENT
+
+      (115) + If the protected IPvX address is an IPv4 address, then:
+
+         (120) * Broadcast a gratuitous ARP request containing the
+         virtual router MAC address for each IP address associated
+         with the virtual router.
+
+      (125) + else // IPv6
+
+         (130) * For each IPv6 address associated with the virtual
+         router, send an unsolicited ND Neighbor Advertisement with
+         the Router Flag (R) set, the Solicited Flag (S) unset, the
+         Override flag (O) set, the target address set to the IPv6
+         address of the virtual router, and the target link-layer
+         address set to the virtual router MAC address.
+
+      (135) +endif // was protected addr IPv4?
+
+      (140) + Set the Adver_Timer to Advertisement_Interval
+
+      (145) + Transition to the {Active} state
+
+   (150) - else // rtr does not own virt addr
+
+      (155) + Set Active_Adver_Interval to Advertisement_Interval
+
+      (160) + Set the Active_Down_Timer to Active_Down_Interval
+
+      (165) + Set Backup_Adver_Timer to Backup_Advertisement_Interval
+
+      (170) + Transition to the {Backup} state
+
+   (175) -endif // priority was not 255
+
+(180) endif // startup event was recv
+]]></artwork>
+          </section>
+          <section>
+            <name>Backup</name>
+            <t> Following state machine replaces the state machine outlined in section 6.4.2 of <xref target="RFC9568"/>
+            </t>
+            <artwork><![CDATA[
+(300) While in this state, a VRRP router MUST do the following:
+
+   (305) - If the protected IPvX address is an IPv4 address, then:
+
+      (310) + MUST NOT respond to ARP requests for the IPv4
+      address(es) associated with the virtual router.
+
+   (315) - else // protected addr is IPv6
+
+      (320) + MUST NOT respond to ND Neighbor Solicitation messages
+      for the IPv6 address(es) associated with the virtual router.
+
+      (325) + MUST NOT send ND Router Advertisement messages for the
+      virtual router.
+
+   (330) -endif // was protected addr IPv4?
+
+   (335) - MUST discard packets with a destination link-layer MAC
+   address equal to the virtual router MAC address.
+
+   (340) - MUST NOT accept packets addressed to the
+   IPvX address(es) associated with the virtual router.
+
+   (345) - If a Shutdown event is received, then:
+
+      (350) + Cancel the Active_Down_Timer.
+
+      (355) + Cancel the Backup_Adver_Timer. 
+
+      (360) + Cancel Backup_Down_Timers.
+
+      (365) + Remove Peer table.
+
+      (370) + If Critical_BFD_Session Exists:
+
+         (375) * Tear down the Critical_BFD_Session.
+
+      (380) + endif // Critical_BFD_Session Exists?
+
+      (385) + Send a BACKUP ADVERTISEMENT with Priority = 0.
+
+      (390) + Transition to the {Initialize} state.
+
+   (395) -endif // shutdown recv
+
+   (400) - If the Active_Down_Timer fires or if this instance is the
+           current Critical_Backup and Critical_BFD_Session transitions
+           from UP to DOWN, then:
+
+      (405) + Send an ADVERTISEMENT
+
+      (415) + If the protected IPvX address is an IPv4 address, then:
+
+         (420) * Broadcast a gratuitous ARP request on that interface
+         containing the virtual router MAC address for each IPv4
+         address associated with the virtual router.
+
+      (425) + else // ipv6
+
+         (430) * Compute and join the Solicited-Node multicast
+         address defined in RFC4291 for the IPv6 address(es) 
+         associated with the virtual router.
+
+         (435) * For each IPv6 address associated with the virtual
+         router, send an unsolicited ND Neighbor Advertisement with
+         the Router Flag (R) set, the Solicited Flag (S) unset, the
+         Override flag (O) set, the target address set to the IPv6
+         address of the virtual router, and the target link-layer
+         address set to the virtual router MAC address.
+
+      (440) +endif // was protected addr ipv4?
+
+      (445) + Set the Adver_Timer to Advertisement_Interval.
+      
+      (450) + If the Critical_BFD_Session exists:
+
+         (455) @ Tear Critical_BFD_Session.
+       
+       (460) + endif // Critical_BFD_Session exists
+
+      (465) + Calculate the Critical_Backup.
+
+      (470) + If the Critical_Backup exists:
+
+         (475) * BootStrap Critical_BFD_Session with the
+                 Critical_Backup.
+
+      (480) + endif //Critical_Backup exists?
+
+      (485) + Transition to the {Active} state.
+
+   (490) -endif // Active_Down_Timer fired
+
+   (485) - If an ADVERTISEMENT is received, then:
+
+      (490) + If the Priority in the ADVERTISEMENT is zero, then:
+
+         (495) * Set the Active_Down_Timer to Skew_Time.
+
+         (500) * If the Critical_BFD_Session exists:
+
+            (505) * Tear Critical_BFD_Session with the Active.
+
+         (510) * endIf // Critical_BFD_Session exists 
+
+      (515) + else // priority non-zero
+
+         (520) * If Preempt_Mode is False, or if the Priority in the
+         ADVERTISEMENT is greater than or equal to the local
+         Priority, then:
+
+            (525) @ Set Active_Adver_Interval to Adver Interval
+            contained in the ADVERTISEMENT.
+
+            (530) @ Recompute the Active_Down_Interval.
+
+            (535) @ Reset the Active_Down_Timer to
+            Active_Down_Interval.
+
+            (540) @ Determine Critical_Backup.
+
+            (545) @ If Critical_BFD_Session does not exists and this
+            instance is the Critical_Backup:
+
+               (550) @+ BootStrap Critical_BFD_Session with Active.
+
+            (555) @ endif //Critical_BFD_Session exists check
+
+         (560) * else // preempt was true or priority was less
+
+            (565) @ Discard the ADVERTISEMENT.
+
+         (570) *endif // preempt test
+
+      (575) +endif // was priority zero?
+
+   (580) -endif // was advertisement recv?
+
+   (585) - If a BACKUP ADVERTISEMENT is received, then:
+
+      (590) + If the Priority in the BACKUP ADVERTISEMENT is zero,
+              then:
+
+         (595) * Cancel Backup_Down_Timer.
+
+         (600) * Remove the Peer from Peer table.
+      
+      (605) + else // priority non-zero
+
+         (610) * Update the peer table with peer information.
+
+         (615) * Set Backup_Adver_Interval to Adver Interval
+         contained in the BACKUP ADVERTISEMENT.
+
+         (620) * Recompute the Backup_Down_Interval.
+
+         (625) * Reset the Backup_Down_Timer to Backup_Down_Interval.
+
+      (630) +endif // was priority zero?
+
+      (635) + Recalculate Critical_Backup.
+
+      (640) + If Critical_BFD_Session exists and this
+      instance is not the Critical_Backup:
+
+         (645) * Tear Down the Critical_BFD_Session.
+
+      (650) + else If Critical_BFD_Session does not exists and this
+      instance is the Critical_Backup:
+
+         (655) * BootStrap Critical_BFD_Session with Active.
+
+      (660) + endif // Critical_Backup change 
+      
+   (665) -endif // was backup advertisement recv?
+
+   (670) - If Backup_Down_Timer fires, then:
+
+      (675) + Remove the Peer from Peer table.
+
+      (680) + If Critical_BFD_Session does not exist:
+
+         (685) @ Recalculate Critical_Backup.
+
+         (690) @ If This instance is the Critical_Backup:
+
+            (695) +@ BootStrap Critical_BFD_Session with Active.
+
+         (700) @ endif // Critical_Backup change 
+
+      (705) + endif // Critical_BFD_Session does not exist?
+
+   (710) -endif // Backup_Down_Timer fires?
+
+   (715) - If Backup_Adver_Timer fires, then:
+
+      (720) + Send a BACKUP ADVERTISEMENT.
+
+      (725) + Reset the Backup_Adver_Timer to
+              Backup_Advertisement_Interval.
+
+   (730) -endif // Backup_Down_Timer fires?
+
+(735) endwhile // Backup state
+
+]]></artwork>
+          </section>
+          <section>
+            <name>Active</name>
+            <t>   Following state machine replaces the state machine outlined in section 6.4.3 of <xref target="RFC9568"/>
+            </t>
+            <artwork><![CDATA[
+   
+(800) While in this state, a VRRP router MUST do the following:
+
+   (805) - If the protected IPvX address is an IPv4 address, then:
+
+      (810) + MUST respond to ARP requests for the IPv4 address(es)
+      associated with the virtual router.
+
+   (815) - else // ipv6
+
+      (820) + MUST be a member of the Solicited-Node multicast
+      address for the IPv6 address(es) associated with the virtual
+      router.
+
+      (825) + MUST respond to ND Neighbor Solicitation message for
+      the IPv6 address(es) associated with the virtual router.
+
+      (830) + MUST send ND Router Advertisements for the virtual
+      router.
+
+      (835) + If Accept_Mode is False:  MUST NOT drop IPv6
+      Neighbor Solicitations and Neighbor Advertisements.
+
+   (840) -endif // ipv4?
+
+   (845) - MUST forward packets with a destination link-layer MAC
+   address equal to the virtual router MAC address.
+
+   (850) - MUST accept packets addressed to the IPvX address(es)
+   associated with the virtual router if it is the IPvX address
+   owner or if Accept_Mode is True.  Otherwise, MUST NOT accept
+   these packets.
+
+   (855) - If a Shutdown event is received, then:
+
+      (860) + Cancel the Adver_Timer.
+
+      (865) + Send an ADVERTISEMENT with Priority = 0,
+
+      (870) + Cancel Backup_Down_Timers.
+
+      (875) + Remove Peer table.
+
+      (880) + If Critical_BFD_Session Exists:
+
+         (885) * Tear down Critical_BFD_Session
+
+      (890) + endif // If Critical_BFD_Session Exists
+
+      (895) + Transition to the {Initialize} state.
+
+   (900) -endif // shutdown recv
+
+   (905) - If the Adver_Timer fires, then:
+
+      (910) + Send an ADVERTISEMENT.
+
+      (915) + Reset the Adver_Timer to Advertisement_Interval.
+
+   (920) -endif // advertisement timer fired
+
+   (925) - If an ADVERTISEMENT is received, then:
+
+      (930) -+ If the Priority in the ADVERTISEMENT is zero, then:
+
+         (935) -* Send an ADVERTISEMENT.
+
+         (940) -* Reset the Adver_Timer to Advertisement_Interval.
+
+      (945) -+ else // priority was non-zero
+
+         (950) -* If the Priority in the ADVERTISEMENT is greater
+         than the local Priority,
+
+         (955) -* or
+
+         (960) -* If the Priority in the ADVERTISEMENT is equal to
+         the local Priority and the primary IPvX Address of the
+         sender is greater than the local primary IPvX Address, then:
+
+            (965) -@ Cancel Adver_Timer
+
+            (970) -@ Set Active_Adver_Interval to Adver Interval
+            contained in the ADVERTISEMENT
+
+            (975) -@ Recompute the Skew_Time
+
+            (980) @ Recompute the Active_Down_Interval
+
+            (985) @ Set Active_Down_Timer to Active_Down_Interval
+
+            (990) If Critical_BFD_Session Exists:
+
+               (995) @+ Tear Critical_BFD_Session
+
+            (960) @ endif //Critical_BFD_Session Exists?
+
+            (965) @ Calculate Critical_Backup.
+         
+            (970) @ If this instance is Critical_Backup:
+
+               (975) @+ BootStrap Critical_BFD_Session with new
+                        Active.
+
+            (980) @ endif // am i Critical_Backup?
+
+            (985) @ Transition to the {Backup} state
+
+         (990) * else // new Active logic
+
+            (995) @ Discard ADVERTISEMENT
+
+         (1000) *endif // new Active detected
+
+      (1005) +endif // was priority zero?
+
+   (1010) -endif // advert recv
+
+   (1015) - If a BACKUP ADVERTISEMENT is received, then:
+
+      (1020) + If the Priority in the BACKUP ADVERTISEMENT is
+               zero, then:
+
+         (1025) * Remove the Peer from peer table.
+
+      (1030) + else: // priority non-zero
+
+         (1035) * Update the Peer info in peer table.
+
+         (1040) * Recompute the Backup_Down_Interval
+
+         (1045) * Reset the Backup_Down_Timer to
+                  Backup_Down_Interval
+
+      (1050) + endif // priority in backup advert zero
+
+      (1055) + Calculate the Critical_Backup
+
+      (1060) + If Critical_BFD_Session doesnot exist:
+
+         (1065) * BootStrap Critical_BFD_Session
+
+      (1070) + else if Critical_BFD_Session exist and
+               Critical_Backup changes:
+
+         (1075) + Tear Critical_BFD_Session with old Backup
+
+         (1080) + BootStrap Critical_BFD_Session with Critical_Backup
+
+      (1085) + endif //  Critical_BFD_Session check?
+
+   (1090) - endif // backup advert recv
+
+   (1095) - If Critical_BFD_Session transitions from UP to DOWN,
+   then:
+      (1100) + Cancel Backup_Down_Timer
+
+      (1105) + Delete the Peer info from peer table
+
+      (1200) + Calculate the Critical_Backup
+
+      (1205) + BootStrap Critical_BFD_Session with Critical_Backup
+
+   (1210) - endif // BFD session transition 
+
+(1215) endwhile // in Active
+
+]]></artwork>
+          </section>
+        </section>
+      </section>
+    </section>
+    <section>
+      <name>Scalability Considerations</name>
+      <t>
+To reduce the number of packets generated at a regular interval, Backup Advert packets may be sent at a reduced rate as compared to Advert packets sent by the VRRP Active.
+</t>
+    </section>
+    <section>
+      <name>Operational Considerations</name>
+      <t>
+A VRRP peer that forms a member of this Virtual Router, but does not support this feature or extension
+must be configured with the lowest priority, and will only operate as the Router of last resort on failure of all other VRRP routers supporting this functionality.
+</t>
+      <t>
+The mechanism defined by this document is intended for deployments where BFD can provide a shorter and operationally reliable failure-detection time than the VRRP Active_Down_Timer, and where the monitored BFD path shares the intended fate with the protected forwarding path. If BFD cannot provide a detection-time advantage, the integration provides no convergence benefit while adding BFD session state, periodic control traffic, configuration, and another operational dependency. In that case, native VRRP failure detection should be used without this integration.
+</t>
+      <t>
+BFD reports reachability of the monitored bidirectional path; it does not by itself determine the health of the remote VRRP process. Therefore, BFD supplements rather than replaces VRRP Advertisements and the Active_Down_Timer. Operators should ensure that filters, policers, shapers, and queueing do not disrupt BFD packet delivery relative to the configured BFD Detection Time.
+</t>
+      <t>
+The operational issues described in Section 8 of <xref target="RFC9568"/> continue to apply. The operational considerations described in Section 7 of <xref target="RFC5880"/>, including packet treatment, processing load, and the trade-off between protocol overhead and failure-detection time, also apply to this mechanism. Implementations and operators should also follow the generic BFD application guidance in <xref target="RFC5882"/>, particularly its description of BFD as an advisory service to client protocols.
+</t>
+      <t>
+This Draft does not preclude the possibility of the peer table being
+populated by means of manual configuration, instead of using the
+BACKUP ADVERTISEMENT as defined by the Draft.
+</t>
+    </section>
+    <section>
+      <name>Applicability to VRRPv2</name>
+      <t>
+The workings of this Draft can be extended to VRRPv2 defined in RFC3768, with the introduction of BACKUP ADVERTISEMENT and Peer Table as outlined in the Draft.
+</t>
+    </section>
+    <section>
+      <name>IANA Considerations</name>
+      <t>This document requests IANA to create a new name space that is to be managed by IANA. The document defines a new VRRP Packet Type. The VRRP Packet Types are discussed below.</t>
+      <artwork><![CDATA[
+a) Type 1 (ADVERTISEMENT) defined in section 5.2.2 of [RFC9568]
+b) Type 2 (BACKUP ADVERTISEMENT) defined in Section 4.3 of this
+document
+]]></artwork>
+      <section>
+        <name>A New Name Space for VRRP Packet Types</name>
+        <t>This document defines in <xref target="format"/> a "BACKUP ADVERTISEMENT" VRRP Packet Type.
+   The new name space has to be created by the IANA and they will maintain this new name space.
+   The field for this namespace is 4-Bits, and IANA guidelines for assignments for this
+   field are as follows:
+</t>
+        <artwork><![CDATA[
+    ADVERTISEMENT             1
+    BACKUP ADVERTISEMENT      2
+    Unassigned               3-15
+]]></artwork>
+        <t>   Future allocations of values in this name space are to be assigned by
+   IANA using the "Specification Required" policy defined in
+   <xref target="IANA-CONS"/>
+        </t>
+      </section>
+    </section>
+    <section>
+      <name>Implementation Status</name>
+      <t>This section is to be removed before publishing as an RFC.</t>
+      <t>This section records the status of known implementations of the protocol defined by this specification at the time of posting of this Internet-Draft. The description of implementations in this section is intended to assist the IETF in its decision processes in progressing drafts to RFCs.</t>
+      <t>Please note that the listing of any individual implementation here does not imply endorsement by the IETF. Furthermore, no effort has been spent to verify the information presented here that was supplied by IETF contributors. This is not intended as, and must not be construed to be, a catalog of available implementations or their features. Readers are advised to note that other implementations may exist.</t>
+      <t>There is a prototype implementation of this draft that has been completed and verified.</t>
+    </section>
+    <section>
+      <name>Security Considerations</name>
+      <t>
+
+Security considerations discussed in  <xref target="RFC9568"/>,  <xref target="RFC5880"/>, apply to this document. There are no additional security considerations identified by this draft. </t>
+    </section>
+    <section>
+      <name>Acknowledgements</name>
+      <t>The authors gratefully acknowledge the contributions of Gerry Meyer, and Mouli Chandramouli, for their contributions to the draft. The authors will also like to thank Jeffrey Haas, Maik Pfeil, Chris Bowers, Vengada Prasad Govindan and Alexander Vainshtein for their comments and suggestions.</t>
+      <t>The authors would also like to thank Michael P, Paul Wouters, Yingzhen Qu, Acee Lindem, and Zhaohui Zhang for their reviews, comments, and suggestions.</t>
+    </section>
+  </middle>
+  <back>
+    <references>
+      <name>References</name>
+      <references>
+        <name>Normative References</name>
+        <reference anchor="RFC5880">
+          <front>
+            <title>Bidirectional Forwarding Detection (BFD)</title>
+            <author initials="D." surname="Katz" fullname="Dave Katz">
+              <organization>Juniper Networks</organization>
+            </author>
+            <author initials="D." surname="Ward" fullname="Dave Ward">
+              <organization>Juniper Network</organization>
+            </author>
+            <date year="2010"/>
+            <area>BFD Working Group</area>
+            <workgroup>Internet Engineering Task Force</workgroup>
+            <abstract>
+              <t>This document describes a protocol intended to detect faults in the
+   bidirectional path between two forwarding engines, including
+   interfaces, data link(s), and to the extent possible the forwarding
+   engines themselves, with potentially very low latency.  It operates
+   independently of media, data protocols, and routing protocols.</t>
+            </abstract>
+            <note>
+              <name>Requirements Language</name>
+              <t>The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in <xref target="RFC2119">RFC 2119</xref>.</t>
+            </note>
+          </front>
+          <seriesInfo name="RFC" value="5880"/>
+        </reference>
+        <reference anchor="RFC2119">
+          <front>
+            <title>Key words for use in RFCs to Indicate Requirement Levels</title>
+            <author initials="S." surname="Bradner" fullname="Scott Bradner">
+              <organization>Harvard University</organization>
+            </author>
+            <date year="1997"/>
+            <area>Network Working Group</area>
+            <workgroup>Internet Engineering Task Force</workgroup>
+            <abstract>
+              <t>This document describes a protocol intended to detect faults in the
+   bidirectional path between two forwarding engines, including
+   interfaces, data link(s), and to the extent possible the forwarding
+   engines themselves, with potentially very low latency.  It operates
+   independently of media, data protocols, and routing protocols.</t>
+            </abstract>
+            <note>
+              <name>Requirements Language</name>
+              <t>The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in <xref target="RFC2119">RFC 2119</xref>.</t>
+            </note>
+          </front>
+          <seriesInfo name="BCP" value="14"/>
+          <seriesInfo name="RFC" value="2119"/>
+        </reference>
+        <reference anchor="RFC8174" target="https://www.rfc-editor.org/info/rfc8174">
+          <front>
+            <title>Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words</title>
+            <author initials="B." surname="Leiba" fullname="Barry Leiba"/>
+            <date year="2017" month="May"/>
+          </front>
+          <seriesInfo name="BCP" value="14"/>
+          <seriesInfo name="RFC" value="8174"/>
+        </reference>
+        <reference anchor="RFC5881">
+          <front>
+            <title>Bidirectional Forwarding Detection (BFD) for IPv4 and IPv6 (Single Hop)</title>
+            <author initials="D." surname="Katz" fullname="Dave Katz">
+              <organization>Juniper Networks</organization>
+            </author>
+            <author initials="D." surname="Ward" fullname="Dave Ward">
+              <organization>Juniper Network</organization>
+            </author>
+            <date year="2010"/>
+            <area>BFD Working Group</area>
+            <workgroup>Internet Engineering Task Force</workgroup>
+            <abstract>
+              <t> This document describes the use of the Bidirectional Forwarding
+   Detection (BFD) protocol over IPv4 and IPv6 for single IP hops.</t>
+            </abstract>
+            <note>
+              <name>Requirements Language</name>
+              <t>The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in <xref target="RFC2119">RFC 2119</xref>.</t>
+            </note>
+          </front>
+          <seriesInfo name="RFC" value="5881"/>
+        </reference>
+        <reference anchor="RFC9568">
+          <front>
+            <title>Virtual Router Redundancy Protocol (VRRP) Version 3 for IPv4 and IPv6</title>
+            <author initials="A" surname="Lindem" fullname="Acee Lindem">
+              <organization>LabN Consulting, L.L.C.</organization>
+            </author>
+            <author initials="A" surname="Dogra" fullname="Aditya Dogra">
+              <organization>Cisco Systems</organization>
+            </author>
+            <date year="2024"/>
+            <area>VRRP Working Group</area>
+            <workgroup>Internet Engineering Task Force</workgroup>
+            <abstract>
+              <t>
+ This memo defines the Virtual Router Redundancy Protocol (VRRP) for
+   IPv4 and IPv6.  It is version three (3) of the protocol, and it is
+   based on VRRP (version 2) for IPv4 that is defined in RFC 3768 and in
+   "Virtual Router Redundancy Protocol for IPv6".  VRRP specifies an
+   election protocol that dynamically assigns responsibility for a
+   virtual router to one of the VRRP routers on a LAN.  The VRRP router
+   controlling the IPv4 or IPv6 address(es) associated with a virtual
+   router is called the Active, and it forwards packets sent to these
+   IPv4 or IPv6 addresses.  VRRP Active Routers are configured with
+   virtual IPv4 or IPv6 addresses, and VRRP Backup Routers infer the
+   address family of the virtual addresses being carried based on the
+   transport protocol.  Within a VRRP router, the virtual routers in
+   each of the IPv4 and IPv6 address families are a domain unto
+   themselves and do not overlap.  The election process provides dynamic
+   failover in the forwarding responsibility should the Active become
+   unavailable.  For IPv4, the advantage gained from using VRRP is a
+   higher-availability default path without requiring configuration of
+   dynamic routing or router discovery protocols on every end-host.  For
+   IPv6, the advantage gained from using VRRP for IPv6 is a quicker
+   switchover to Backup Routers than can be obtained with standard IPv6
+   Neighbor Discovery mechanisms.</t>
+            </abstract>
+            <note>
+              <name>Requirements Language</name>
+              <t>The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in <xref target="RFC2119">RFC 2119</xref>.</t>
+            </note>
+          </front>
+          <seriesInfo name="RFC" value="9568"/>
+        </reference>
+        <reference anchor="IANA-CONS">
+          <front>
+            <title>Guidelines for Writing an IANA Considerations Section in RFCs</title>
+            <author initials="T." surname="Narten" fullname="Thomas Narten">
+              <organization>IBM Corporation</organization>
+            </author>
+            <author initials="H." surname="Alvestrand" fullname="Harald Tveit Alvestrand">
+              <organization>Maxware</organization>
+            </author>
+            <date year="1998"/>
+            <area>Network Working Group</area>
+            <workgroup>Internet Engineering Task Force</workgroup>
+            <abstract>
+              <t>Many protocols make use of identifiers consisting of constants and
+other well-known values. Even after a protocol has been defined and
+deployment has begun, new values may need to be assigned (e.g., for a
+new option type in DHCP, or a new encryption or authentication
+algorithm for IPSec). To insure that such quantities have consistent
+values and interpretations in different implementations, their
+assignment must be administered by a central authority. For IETF
+protocols, that role is provided by the Internet Assigned Numbers
+Authority (IANA).
+
+In order for the IANA to manage a given name space prudently, it
+needs guidelines describing the conditions under which new values can
+be assigned. If the IANA is expected to play a role in the management
+of a name space, the IANA must be given clear and concise
+instructions describing that role. This document discusses issues
+that should be considered in formulating a policy for assigning
+values to a name space and provides guidelines to document authors on
+the specific text that must be included in documents that place
+demands on the IANA.</t>
+            </abstract>
+            <note>
+              <name>Requirements Language</name>
+              <t>The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in <xref target="RFC2119">RFC 2119</xref>.</t>
+            </note>
+          </front>
+          <seriesInfo name="RFC" value="8126"/>
+        </reference>
+      </references>
+      <references>
+        <name>Informative References</name>
+        <reference anchor="RFC5882" target="https://www.rfc-editor.org/info/rfc5882">
+          <front>
+            <title>Generic Application of Bidirectional Forwarding Detection (BFD)</title>
+            <author initials="D." surname="Katz" fullname="Dave Katz"/>
+            <author initials="D." surname="Ward" fullname="Dave Ward"/>
+            <date year="2010" month="June"/>
+          </front>
+          <seriesInfo name="RFC" value="5882"/>
+        </reference>
+        <reference anchor="NISTIR8366" target="https://doi.org/10.6028/NIST.IR.8366">
+          <front>
+            <title>
+Guidance for NIST Staff on Using Inclusive Language in 
+Documentary Standards,National Institute of Standards 
+and Technology (NIST) Interagency or Internal Report 
+8366</title>
+            <author surname="NIST"/>
+            <date year="2021" month="April"/>
+          </front>
+          <seriesInfo name="NISTIR" value="8366"/>
+        </reference>
+      </references>
+    </references>
+  </back>
+</rfc>
