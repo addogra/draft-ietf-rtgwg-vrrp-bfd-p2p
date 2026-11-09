@@ -81,11 +81,11 @@ This document describes how Point to Point Bidirectional Forwarding Detection (B
     <section>
       <name>Introduction</name>
       <t>
-The Virtual Router Redundancy Protocol (VRRP) provides redundant Virtual gateways in the Local Area Network (LAN), which is typically the first point of failure for end-hosts sending traffic out of the LAN. Fast failure detection of VRRP Active is critical in supporting high availability of services and improved Quality of Experience to users. 
+The Virtual Router Redundancy Protocol (VRRP) provides redundant Virtual gateways in the Local Area Network (LAN), which is typically the first point of failure for end-hosts sending traffic out of the LAN. Fast failure detection of VRRP Active is critical in supporting high availability of services and improved Quality of Experience to users.
 
-In VRRP <xref target="RFC9568"/> specification, Backup routers depend on VRRP packets generated at a regular interval by the Active router, to detect the health of the VRRP Active. Faster failure detection can be achieved within VRRP protocol by reducing the Advertisement and Active Down Interval. However, sub second Advert timers, can put extra load on CPU and the network bandwidth which may not be desirable. 
+In VRRP <xref target="RFC9568"/> specification, Backup routers depend on VRRP packets generated at a regular interval by the Active router, to detect the health of the VRRP Active. Faster failure detection can be achieved within VRRP protocol by reducing the Advertisement and Active Down Interval. However, sub second Advert timers, can put extra load on CPU and the network bandwidth which may not be desirable.
 </t>
-      <t>Since the VRRP protocol depends on the availability of Layer 3 IPv4 or IPv6 connectivity between redundant peers, the VRRP protocol can interact with the Layer 3 variant of BFD as described in <xref target="RFC5881"/> to achieve a much faster failure detection of the VRRP Active on the LAN. BFD, as specified by the <xref target="RFC5880"/> can provide a much faster failure detection in the range of 150ms, if implemented in the part of a Network device which scales better than VRRP when sub second Advert timers are used. 
+      <t>Since the VRRP protocol depends on the availability of Layer 3 IPv4 or IPv6 connectivity between redundant peers, the VRRP protocol can interact with the Layer 3 variant of BFD as described in <xref target="RFC5881"/> to achieve a much faster failure detection of the VRRP Active on the LAN. BFD, as specified by the <xref target="RFC5880"/> can provide a much faster failure detection in the range of 150ms, if implemented in the part of a Network device which scales better than VRRP when sub second Advert timers are used.
 </t>
       <t>Terminology of this draft has been updated conform to inclusive language guidelines for VRRP Inclusive Terminologies <xref target="RFC9568"/>. The IETF has designated National Institute of Standards and Technology (NIST) "Guidance for NIST Staff on Using Inclusive Language in Documentary Standards" <xref target="NISTIR8366"/> for its inclusive language guidelines.
 </t>
@@ -163,7 +163,7 @@ received from a peer for a period of (3 * the Advert interval).
 ...                                                             ...
  |                                                               |
  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- |Version| Type  | Virtual Rtr ID|    Priority   |Count IPvX Addr| 
+ |Version| Type  | Virtual Rtr ID|    Priority   |Count IPvX Addr|
  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  |(rsvd) |    Max Advert Int     |        Checksum               |
  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -201,7 +201,7 @@ received from a peer for a period of (3 * the Advert interval).
         <name>Sample configuration</name>
         <t keepWithNext="true">The following figure shows a simple network with three VRRP routers implementing one virtual router.</t>
         <artwork><![CDATA[
-    +-----------+     +-----------+      +-----------+ 
+    +-----------+     +-----------+      +-----------+
     |   Rtr1    |     |   Rtr2    |      |   Rtr3    |
     |(AR VRID=1)|     |(BR VRID=1)|      |(BR VRID=1)|
     | (PR=200)  |     | (PR=150)  |      | (PR=100)  |
@@ -218,9 +218,9 @@ Legend:
                     BR    =  Backup Router
                     PR    =  VRRP Router priority
                     VRID  =  VRRP Router ID
-                    VRIPVX=  IPv4 or IPv6 address protected by 
+                    VRIPVX=  IPv4 or IPv6 address protected by
                              the VRRP Router
-                    B,C,D =  Interface IPv4 or IPv6 address of 
+                    B,C,D =  Interface IPv4 or IPv6 address of
                              the Virtual Router
 
 ]]></artwork>
@@ -310,13 +310,13 @@ Backup_Down_Interval           Time interval for VRRP instance
                                (centiseconds). Calculated as
                                (3 * Backup_Adver_Interval) for
                                each VRRP Backup.
-                        
+
 Critical_Backup                Procedure outlined in section 3.4
                                of this document is used to
                                determine the Critical_Backup at
                                each VRRP Instance.
-                        
-Critical_BFD_Session           The Critical BFD Session is 
+
+Critical_BFD_Session           The Critical BFD Session is
                                the session between
                                the VRRP Active and Critical_Backup.
 
@@ -423,7 +423,7 @@ Please refer to the section 6.4 of <xref target="RFC9568"/> for State descriptio
 
       (350) + Cancel the Active_Down_Timer.
 
-      (355) + Cancel the Backup_Adver_Timer. 
+      (355) + Cancel the Backup_Adver_Timer.
 
       (360) + Cancel Backup_Down_Timers.
 
@@ -456,7 +456,7 @@ Please refer to the section 6.4 of <xref target="RFC9568"/> for State descriptio
       (425) + else // ipv6
 
          (430) * Compute and join the Solicited-Node multicast
-         address defined in RFC4291 for the IPv6 address(es) 
+         address defined in RFC4291 for the IPv6 address(es)
          associated with the virtual router.
 
          (435) * For each IPv6 address associated with the virtual
@@ -469,11 +469,11 @@ Please refer to the section 6.4 of <xref target="RFC9568"/> for State descriptio
       (440) +endif // was protected addr ipv4?
 
       (445) + Set the Adver_Timer to Advertisement_Interval.
-      
+
       (450) + If the Critical_BFD_Session exists:
 
          (455) @ Tear Critical_BFD_Session.
-       
+
        (460) + endif // Critical_BFD_Session exists
 
       (465) + Calculate the Critical_Backup.
@@ -499,7 +499,7 @@ Please refer to the section 6.4 of <xref target="RFC9568"/> for State descriptio
 
             (505) * Tear Critical_BFD_Session with the Active.
 
-         (510) * endIf // Critical_BFD_Session exists 
+         (510) * endIf // Critical_BFD_Session exists
 
       (515) + else // priority non-zero
 
@@ -542,7 +542,7 @@ Please refer to the section 6.4 of <xref target="RFC9568"/> for State descriptio
          (595) * Cancel Backup_Down_Timer.
 
          (600) * Remove the Peer from Peer table.
-      
+
       (605) + else // priority non-zero
 
          (610) * Update the peer table with peer information.
@@ -568,8 +568,8 @@ Please refer to the section 6.4 of <xref target="RFC9568"/> for State descriptio
 
          (655) * BootStrap Critical_BFD_Session with Active.
 
-      (660) + endif // Critical_Backup change 
-      
+      (660) + endif // Critical_Backup change
+
    (665) -endif // was backup advertisement recv?
 
    (670) - If Backup_Down_Timer fires, then:
@@ -584,7 +584,7 @@ Please refer to the section 6.4 of <xref target="RFC9568"/> for State descriptio
 
             (695) +@ BootStrap Critical_BFD_Session with Active.
 
-         (700) @ endif // Critical_Backup change 
+         (700) @ endif // Critical_Backup change
 
       (705) + endif // Critical_BFD_Session does not exist?
 
@@ -608,7 +608,7 @@ Please refer to the section 6.4 of <xref target="RFC9568"/> for State descriptio
             <t>   Following state machine replaces the state machine outlined in section 6.4.3 of <xref target="RFC9568"/>
             </t>
             <artwork><![CDATA[
-   
+
 (800) While in this state, a VRRP router MUST do the following:
 
    (805) - If the protected IPvX address is an IPv4 address, then:
@@ -706,7 +706,7 @@ Please refer to the section 6.4 of <xref target="RFC9568"/> for State descriptio
             (960) @ endif //Critical_BFD_Session Exists?
 
             (965) @ Calculate Critical_Backup.
-         
+
             (970) @ If this instance is Critical_Backup:
 
                (975) @+ BootStrap Critical_BFD_Session with new
@@ -771,7 +771,7 @@ Please refer to the section 6.4 of <xref target="RFC9568"/> for State descriptio
 
       (1205) + BootStrap Critical_BFD_Session with Critical_Backup
 
-   (1210) - endif // BFD session transition 
+   (1210) - endif // BFD session transition
 
 (1215) endwhile // in Active
 
@@ -1033,9 +1033,9 @@ demands on the IANA.</t>
         <reference anchor="NISTIR8366" target="https://doi.org/10.6028/NIST.IR.8366">
           <front>
             <title>
-Guidance for NIST Staff on Using Inclusive Language in 
-Documentary Standards,National Institute of Standards 
-and Technology (NIST) Interagency or Internal Report 
+Guidance for NIST Staff on Using Inclusive Language in
+Documentary Standards,National Institute of Standards
+and Technology (NIST) Interagency or Internal Report
 8366</title>
             <author surname="NIST"/>
             <date year="2021" month="April"/>

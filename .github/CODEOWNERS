@@ -1,3 +1,4 @@
-# Automatically generated CODEOWNERS
-# Regenerate with `make update-codeowners`
-draft-ietf-rtgwg-vrrp-bfd-p2p.xml nitgupta@paloaltonetworks.com addogra@cisco.com colin@doch.org.uk jefftant.ietf@gmail.com
+# Author approval for draft and release changes.
+draft-ietf-rtgwg-vrrp-bfd-p2p.xml @addogra nitgupta@paloaltonetworks.com addogra@cisco.com colin@doch.org.uk jefftant.ietf@gmail.com
+/.github/ @addogra
+/Makefile @addogra
